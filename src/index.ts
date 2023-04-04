@@ -1,5 +1,3 @@
-import _ from "lodash";
-
-export default (a: string) => {
-  return _.trim(a);
-};
+import SandboxIframe from "./SandboxIframe";
+// 初始化
+SandboxIframe();

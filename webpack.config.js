@@ -1,10 +1,9 @@
 const path = require("path");
-const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
 
 module.exports = {
   entry: {
-    "my-lib": "./src/index.ts",
-    "my-lib.min": "./src/index.ts",
+    "sandbox-iframe": "./src/index.ts",
+    "sandbox-iframe.min": "./src/index.ts",
   },
   devtool: "inline-source-map",
   module: {
@@ -30,17 +29,16 @@ module.exports = {
     filename: "[name].js",
     path: path.resolve(__dirname, "dist"),
     libraryTarget: "umd",
-    library: "MyLib",
     umdNamedDefine: true,
   },
   devtool: "source-map",
   optimization: {
-    minimizer: [
-      new UglifyJsPlugin({
-        parallel: true,
-        sourceMap: true,
-        include: /\.min\.js$/,
-      }),
-    ],
+    // minimizer: [
+    //   new UglifyJsPlugin({
+    //     parallel: true,
+    //     sourceMap: true,
+    //     include: /\.min\.js$/,
+    //   }),
+    // ],
   },
 };
