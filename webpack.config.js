@@ -1,4 +1,5 @@
 const path = require("path");
+const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = {
   entry: {
@@ -33,12 +34,11 @@ module.exports = {
   },
   devtool: "source-map",
   optimization: {
-    // minimizer: [
-    //   new UglifyJsPlugin({
-    //     parallel: true,
-    //     sourceMap: true,
-    //     include: /\.min\.js$/,
-    //   }),
-    // ],
+    minimizer: [
+      new TerserPlugin({
+        parallel: true,
+        include: /\.min\.js$/,
+      }),
+    ],
   },
 };
