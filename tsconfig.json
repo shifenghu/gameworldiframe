@@ -3,11 +3,21 @@
     "module": "commonjs",
     "target": "es5",
     "lib": ["es2015", "dom"],
+    "baseUrl": ".",
     "outDir": "lib",
     "sourceMap": true,
+    "declaration": true,
+    "allowJs": true,
+    "skipLibCheck": true,
     "esModuleInterop": true,
-    "declaration": true
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
   // "exclude": ["lib", "node_moodules"],
-  "include": ["./src/*"]
+  "include": ["src"]
 }

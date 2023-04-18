@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm -rf dist && rm -rf lib && webpack  --mode production"
+    "build": "rm -rf dist && rm -rf lib && webpack  --mode production",
+    "postbuild": "cp dist/sandbox-iframe.js ../gameworld/public/demo/"
   },
   "author": "",
   "license": "ISC",

@@ -1,35 +1,36 @@
 interface Window {
   SanboxIFrame: any;
+  Sandbox: {
+    evaluate: (code: string, context: SandboxContext) => void;
+  };
 }
 declare type EventType = "Method" | "Callback" | "Inited";
 declare type RemoveListener = () => void;
-declare interface PromiseCallback {
-  Resolve: MessageCallback;
+declare type MessageCallback = (o: MessagePayload) => void;
+declare type SandboxIframeEvent = PromiseCallback<MessagePayload> | MessageCallback;
+
+declare interface PromiseCallback<T> {
+  Resolve: MessageCallback<T>;
   Error: (message: string) => void;
 }
 
 // 基础插件接口
-declare interface MyPlugin {
-  // 组件名称
-  Namespace: string;
-  // 初始化组件
-  Initialize: () => void;
-  // 销毁组件
-  Destroy: () => void;
-}
-declare type MessageCallback = (message: any) => void;
+declare type MessageCallback<T> = (message: T) => void;
 declare interface SandboxIframe {
   // 发送一个同步消息
   Post: (payload: MessagePayload) => void;
   // 发送一个有回调的消息
-  PostAsync: <T>(payload: MessagePayload, timeout: number) => Promise<T>;
+  PostAsync: (payload: MessagePayload, timeout: number) => Promise<MessagePayload>;
   // 添加一个消息监听
-  AddEventListener: (
-    eventName: string,
-    callback: MessageCallback
-  ) => RemoveListener;
+  AddEventListener: (eventName: string, callback: MessageCallback) => RemoveListener;
   // 销毁
   Destroy: () => void;
+}
+
+declare interface SandboxIframeInner extends SandboxIframe {
+  _IsInited: Boolean;
+  _listeners: { [key in string]: IFrameMessageEvent[] };
+  _parentWindow?: Window | null;
 }
 declare interface IframeMessage {
   EventType: EventType;
@@ -41,3 +42,11 @@ declare interface MessagePayload {
   Id: string;
   Args: any[];
 }
+declare interface SandboxContext {
+  [key: string]: any;
+}
+declare interface SandboxConfigurator {}
+
+declare type EventListenerCallback = (...args: any[]) => void;
+
+declare type StageEventListenerFunction = (stage: SandBoxStage, ...args: any[]) => boolean | undefined;

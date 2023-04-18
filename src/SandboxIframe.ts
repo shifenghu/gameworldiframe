@@ -1,6 +1,7 @@
 import _ from "lodash";
+import { MyPlugin } from "./Defined.used";
+import Sandbox from "./Sandbox";
 const InitEventType = "Inited";
-const EventTypeName = "EventType";
 const InitPostData = {
   Namespace: "",
   Method: "",
@@ -10,12 +11,50 @@ const InitPostData = {
 
 class IFrameMessageEvent {
   public readonly Id: string;
-  public readonly Promise: PromiseCallback;
+  public readonly Promise: SandboxIframeEvent;
   public readonly Timeout: number;
-  constructor(id: string, promise: PromiseCallback, timeout = -1) {
+  public readonly Times: number;
+  public readonly IsPromise: Boolean;
+  private times = -1;
+  constructor(id: string, promise: SandboxIframeEvent, timeout = -1, times = -1) {
     this.Id = id;
     this.Promise = promise;
     this.Timeout = timeout == -1 ? -1 : new Date().getTime() + timeout;
+    this.times = times;
+    this.Times = times;
+    this.IsPromise = _.isPlainObject(this.Promise) && _.isFunction((this.Promise as PromiseCallback<MessagePayload>).Resolve);
+  }
+
+  /**
+   * 激活一次
+   * @param message 消息
+   * @returns 是否需要删除
+   */
+  public Callback(message: MessagePayload): boolean {
+    // 如果已经没有次数了，则直接删除
+    if (this.times === 0) {
+      return true;
+    }
+    // 是否已经过期了
+    if (this.IsTimeout()) {
+      this.IsPromise && (this.Promise as PromiseCallback<MessagePayload>).Error("Timeout");
+      return true;
+    }
+    // 执行一次
+    try {
+      if (this.IsPromise) {
+        (this.Promise as PromiseCallback<MessagePayload>).Resolve(message);
+      } else {
+        (this.Promise as MessageCallback)(message);
+      }
+    } catch (e) {
+      console.error(`Message callback error is %o`, e);
+    }
+    if (this.times < 0) {
+      return false;
+    }
+    this.times--;
+    return false;
   }
 
   /**
@@ -23,23 +62,20 @@ class IFrameMessageEvent {
    * @returns 是否超时
    */
   public IsTimeout(): boolean {
-    return this.Timeout > 0 && this.Timeout < new Date().getTime();
+    return this.IsPromise && this.Timeout > 0 && this.Timeout < new Date().getTime();
   }
 }
 
-export default (): SandboxIframe => {
-  if (window.SanboxIFrame) {
-    return window.SanboxIFrame;
+export default (plugins: MyPlugin[] = []): void => {
+  if (window.Sandbox) {
+    return;
   }
-  const sandboxIframe = {} as any;
+  const sandboxIframe = {} as SandboxIframeInner;
   sandboxIframe._IsInited = false;
   sandboxIframe._listeners = {};
-  sandboxIframe._onceListeners = {};
-  sandboxIframe._parentWindow = undefined as undefined | MessageEventSource;
-  const PostMessage = function (
-    eventType: EventType = "Callback",
-    payload = {}
-  ) {
+  sandboxIframe._parentWindow = undefined;
+  let initCounter = 0;
+  const PostMessage = function (eventType: EventType = "Method", payload = {}) {
     sandboxIframe._parentWindow?.postMessage(
       {
         EventType: eventType,
@@ -53,42 +89,48 @@ export default (): SandboxIframe => {
     if (sandboxIframe._IsInited || event.data.EventType != InitEventType) {
       return false;
     }
-    sandboxIframe._parentWindow = event.source;
-    PostMessage("Inited", InitPostData);
-    sandboxIframe._IsInited = true;
+    sandboxIframe._parentWindow = event.source as Window;
+    initCounter++;
+    if (initCounter == 1) {
+      PostMessage("Inited", InitPostData);
+    } else {
+      sandbox.OnLoaded();
+      sandboxIframe._IsInited = true;
+    }
     return true;
   };
   const clearTimeoutEvent = () => {
-    // 移除 once
-    Object.keys(sandboxIframe._onceListeners).forEach((o) => {
-      const event = sandboxIframe._onceListeners[o];
-      if (event.IsTimeout()) {
-        delete sandboxIframe._onceListeners[o];
-        event.Promise.Error("Timeout");
-      }
-    });
+    // 移除超时
+    Object.keys(sandboxIframe._listeners).forEach((id) =>
+      iteratorListener(id, (event) => {
+        if (event.IsTimeout()) {
+          (event.Promise as PromiseCallback<MessagePayload>).Error("Timeout");
+          return true;
+        }
+        return false;
+      })
+    );
   };
-  const interval = setInterval(clearTimeoutEvent, 2000);
-  sandboxIframe.Destroy = function () {
-    clearInterval(interval);
-  };
-  /**
-   * 处理正常调用
-   * @param data
-   * @returns
-   */
-  const doListenerForAllways = (data: IframeMessage) => {
-    if (data.EventType !== "Method") {
+
+  const iteratorListener = (eventName: string, ifRemove: (event: IFrameMessageEvent) => boolean) => {
+    const events = sandboxIframe._listeners[eventName];
+    if (_.isUndefined(events)) {
+      console.warn(`[${eventName}] event not found process handler : %o.`, sandboxIframe._listeners);
       return;
     }
-    // 获取接受的回调函数
-    const list = sandboxIframe._listeners[
-      data[EventTypeName]
-    ] as MessageCallback[];
-    if (!_.isArray(list)) {
-      console.warn(`${data[EventTypeName]} can't find any listener function.`);
+    let counter = 0;
+    while (counter < events.length) {
+      const event = events[counter];
+      if (ifRemove(event)) {
+        events.splice(counter, 1);
+      } else {
+        counter++;
+      }
+    }
+    if (events.length > 0) {
+      sandboxIframe._listeners[eventName] = events;
     } else {
-      list.forEach((o) => o(data.Payload));
+      delete sandboxIframe._listeners[eventName];
     }
   };
   /**
@@ -96,33 +138,22 @@ export default (): SandboxIframe => {
    * @param data
    * @returns
    */
-  const doListenerForOnce = (data: IframeMessage) => {
-    if (data.EventType !== "Callback") {
+  const doListener = (data: IframeMessage) => {
+    if (data.EventType !== "Method") {
       return;
     }
+    console.log("once message is %o", data);
     const message = data.Payload as MessagePayload;
-    const event = sandboxIframe._onceListeners[
-      message.Id
-    ] as IFrameMessageEvent;
-    if (!_.isUndefined(event)) {
-      delete sandboxIframe._onceListeners[message.Id];
-      if (event.IsTimeout()) {
-        event.Promise.Error("Timeout");
-      } else {
-        event.Promise.Resolve(message);
-      }
-    }
+    iteratorListener(`${message.Namespace}.${message.Method}`, (event) => event.Callback(message));
   };
-  // 其他方法监听处理
-  const Callback = function (message: IframeMessage) {
-    doListenerForOnce(message);
-    doListenerForAllways(message);
+
+  const interval = setInterval(clearTimeoutEvent, 2000);
+  sandboxIframe.Destroy = function () {
+    clearInterval(interval);
   };
 
   // 消息监听
-  sandboxIframe._MessageListener = function (
-    event: MessageEvent<IframeMessage>
-  ) {
+  const MessageListener = function (event: MessageEvent<IframeMessage>) {
     // 是否是我们需要的消息
     if (!event.data.EventType) {
       return;
@@ -132,46 +163,30 @@ export default (): SandboxIframe => {
       return;
     }
     // 其他信息处理
-    Callback(event.data);
+    doListener(event.data);
   };
-  sandboxIframe.Post = function (payload: MessagePayload) {
+  sandboxIframe.Post = (payload: MessagePayload) => PostMessage("Method", payload);
+  sandboxIframe.PostAsync = function (payload: MessagePayload, timeout: number = 5000) {
     PostMessage("Method", payload);
-  };
-  sandboxIframe.PostAsync = function <T>(
-    payload: MessagePayload,
-    timeout: number = 5000
-  ) {
-    PostMessage("Callback", payload);
-    console.log(
-      `Post async message [${JSON.stringify(payload)}] is successfull.`
-    );
-    return new Promise<T>((res, rej) => {
-      const promiseCallback = {} as PromiseCallback;
-      promiseCallback.Resolve = (o) => res(o);
+    console.log(`Post async message [${JSON.stringify(payload)}] is successfull.`);
+    return new Promise<MessagePayload>((res, rej) => {
+      const promiseCallback = {} as PromiseCallback<MessagePayload>;
+      promiseCallback.Resolve = res;
       promiseCallback.Error = rej;
-      sandboxIframe._onceListeners[payload.Id] = new IFrameMessageEvent(
-        payload.Id,
-        promiseCallback,
-        timeout
-      );
+      sandboxIframe._listeners[`${payload.Namespace}.${payload.Method}`] = [new IFrameMessageEvent(payload.Id, promiseCallback as SandboxIframeEvent, timeout, 1)];
     });
   };
-  sandboxIframe.AddEventListener = function (
-    eventName: string,
-    callback: MessageCallback
-  ) {
-    const list = sandboxIframe._listeners[eventName]
-      ? sandboxIframe._listeners[eventName]
-      : [];
-    list.push(callback);
+  sandboxIframe.AddEventListener = function (eventName: string, callback: MessageCallback) {
+    const list: IFrameMessageEvent[] = sandboxIframe._listeners[eventName] ? sandboxIframe._listeners[eventName] : [];
+    list.push(new IFrameMessageEvent(eventName, callback, -1, -1));
     sandboxIframe._listeners[eventName] = list;
-    return () =>
-      _.remove(sandboxIframe._listeners[eventName], (o) => o === callback);
+    console.log(`add ${eventName} event listener`);
+    return () => _.remove(sandboxIframe._listeners[eventName], (o: IFrameMessageEvent) => o.Promise === callback);
   };
 
-  window.addEventListener("message", sandboxIframe._MessageListener);
-  window.SanboxIFrame = sandboxIframe;
-  return sandboxIframe;
+  window.addEventListener("message", MessageListener);
+  const sandbox = new Sandbox(sandboxIframe);
+  _.forEach(plugins, (o) => sandbox.AddPlugin(o));
+  sandbox.Initialize();
+  window.Sandbox = sandbox;
 };
-
-// 45
