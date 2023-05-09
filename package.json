@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "",
   "private": true,
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rm -rf dist && rm -rf lib && webpack  --mode production",
@@ -16,6 +17,7 @@
     "@babel/polyfill": "^7.12.1",
     "@babel/preset-env": "^7.20.2",
     "@types/lodash": "^4.14.192",
+    "@types/node": "^18.16.0",
     "awesome-typescript-loader": "^5.2.1",
     "babel-loader": "^9.1.2",
     "terser-webpack-plugin": "^5.3.7",

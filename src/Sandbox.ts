@@ -22,6 +22,9 @@ export class SandboxPluginContext {
   public Replay(postId: string, method: string, ...args: any[]): void {
     this.sandbox.Replay(postId, this.plugin.Namespace, method, ...args);
   }
+  public ReplayByMessage(message: MessagePayload, ...args: any[]): void {
+    this.sandbox.Replay(message.Id, this.plugin.Namespace, message.Method, ...args);
+  }
   public AddPluginEventListener(method: string, callback: EventListenerCallback): RemoveListener {
     return this.sandbox.AddPluginEventListener(this.plugin.Namespace, method, callback);
   }
@@ -44,11 +47,18 @@ export default class Sandbox {
 
   private pluginEventlisteners: { [eventName in string]: EventListenerCallback[] };
 
+  public readonly context: SandboxContext;
+
   constructor(sandboxIframe: SandboxIframe) {
     this.plugins = {};
     this.pluginEventlisteners = {};
     this.stageListeners = {};
     this.iframe = sandboxIframe;
+    this.context = {
+      Account: {
+        GetInfo: () => CastMessageByPromise(this.PostAsnyc("Account", "GetInfo")),
+      },
+    };
   }
 
   public OnLoaded(): void {
@@ -190,11 +200,13 @@ export default class Sandbox {
     return this.iframe.AddEventListener(`${namespace}.${method}`, callback);
   }
 
-  public evaluate(code: string, context: SandboxContext): void {
+  public evaluate(code: string): void {
     try {
-      window.eval(`(function () {with(context){${code}}}();`);
+      console.debug(window.Sandbox);
+      window.eval(`with(window.Sandbox.context){${code}}`);
     } catch (e) {
       console.error(`eval() threw an exception %o.`, e);
+      console.error(`(function () {with(context){${code}}}()`);
     }
   }
 }
@@ -225,4 +237,14 @@ export const RemoveAndIterator = function <T>(array: T[], canRemove: (o: T) => b
     }
     count++;
   }
+};
+export const CastMessageByPromise = function <T>(promise: Promise<MessagePayload>) {
+  return new Promise<T>((res, rej) => {
+    promise
+      .then((o) => {
+        console.log("gggg o is %o", o.Args);
+        o.Args.length > 0 ? res(o.Args[0] as T) : res(o.Args as T);
+      })
+      .catch(rej);
+  });
 };

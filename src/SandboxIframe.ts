@@ -66,7 +66,7 @@ class IFrameMessageEvent {
   }
 }
 
-export default (plugins: MyPlugin[] = []): void => {
+export default (plugins: MyPlugin[] = [], OnLoaded: () => void): void => {
   if (window.Sandbox) {
     return;
   }
@@ -95,6 +95,7 @@ export default (plugins: MyPlugin[] = []): void => {
       PostMessage("Inited", InitPostData);
     } else {
       sandbox.OnLoaded();
+      OnLoaded();
       sandboxIframe._IsInited = true;
     }
     return true;

@@ -3,8 +3,8 @@
     "module": "commonjs",
     "target": "es5",
     "lib": ["es2015", "dom"],
-    "baseUrl": ".",
     "outDir": "lib",
+    "baseUrl": ".",
     "sourceMap": true,
     "declaration": true,
     "allowJs": true,
@@ -18,6 +18,5 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  // "exclude": ["lib", "node_moodules"],
-  "include": ["src"]
+  "exclude": ["lib", "node_moodules"]
 }

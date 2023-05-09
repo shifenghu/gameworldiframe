@@ -1,4 +1,4 @@
-export declare interface MyPlugin {
+export interface MyPlugin {
   // 组件名称
   Namespace: string;
   Orderer: number;

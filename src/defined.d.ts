@@ -1,7 +1,7 @@
 interface Window {
   SanboxIFrame: any;
   Sandbox: {
-    evaluate: (code: string, context: SandboxContext) => void;
+    evaluate: (code: string) => void;
   };
 }
 declare type EventType = "Method" | "Callback" | "Inited";
@@ -42,7 +42,17 @@ declare interface MessagePayload {
   Id: string;
   Args: any[];
 }
+
+declare interface AccountInfo {
+  Connected: boolean;
+  Address: string;
+  WalletType: WalletType;
+}
+
 declare interface SandboxContext {
+  Account: {
+    GetInfo: () => Promise<AccountInfo>;
+  };
   [key: string]: any;
 }
 declare interface SandboxConfigurator {}
