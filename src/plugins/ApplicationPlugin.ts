@@ -1,11 +1,10 @@
-import { SandboxPluginContext } from "src/Sandbox";
-import { MyPlugin } from "../Defined.used";
+/// <reference path="../common/framework.ts" />
 
-export default class ApplicationPlugin implements MyPlugin {
-  public Namespace = "Application";
-  public readonly Orderer: number = 1;
-  public Initialize(_: SandboxConfigurator, context: SandboxPluginContext) {
-    context.AddListener("GetName", (message: MessagePayload) => context.ReplayByMessage(message, "My name is Application plugin."));
+import { SandboxContext, SandboxConfigurator, MyPlugin } from "../core/SandboxApplication";
+
+export default class ApplicationPlugin extends MyPlugin {
+  public readonly Namespace = "Application";
+  public Initialize(_: SandboxConfigurator, context: SandboxContext) {
+    context.On("GetName", (message: Sandbox.IMessagePayload) => context.Reply(message, ["My name is Application plugin."]));
   }
-  public Destroy() {}
 }
