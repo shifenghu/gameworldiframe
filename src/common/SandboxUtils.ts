@@ -1,8 +1,18 @@
-/// <reference path="./framework.ts" />
-
 import _ from "lodash";
 
-const SandboxUtils = {} as Sandbox.SandboxUtils;
+export const SandboxUtils = {} as Sandbox.SandboxUtils;
+
+export type MessageEventType = "Inited" | "Method";
+
+/**
+ * 生命周期阶段类型
+ */
+export enum LifecycleEventType {
+  Inited = "Inited",
+  Destroyed = "Destroyed",
+  BeforeInitPlugin = "BeforeInitPlugin",
+  AfterInitPlugin = "AfterInitPlugin",
+}
 
 /**
  * 便利事件监听
@@ -41,5 +51,3 @@ SandboxUtils.IterateListeners = (listeners: Sandbox.MessageChannelListeners, eve
 SandboxUtils.MergeEventName = (namespace: string, method: string) => {
   return `${namespace}.${method}`;
 };
-
-export default SandboxUtils;

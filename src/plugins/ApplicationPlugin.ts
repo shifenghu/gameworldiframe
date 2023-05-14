@@ -1,5 +1,3 @@
-/// <reference path="../common/framework.ts" />
-
 import { SandboxContext, SandboxConfigurator, MyPlugin } from "../core/SandboxApplication";
 
 export default class ApplicationPlugin extends MyPlugin {

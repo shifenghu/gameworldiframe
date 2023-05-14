@@ -1,6 +1,4 @@
-/// <reference path="../common/framework.ts" />
-
-import SandboxUtils from "../common/SandboxUtils";
+import { SandboxUtils, MessageEventType } from "../common/SandboxUtils";
 import _ from "lodash";
 const InitPostData = {
   Namespace: "",
@@ -91,7 +89,7 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     //   // 其他信息处理
     //   this.doListener(event.data);
     // };
-    window.addEventListener("message", this.messageListener);
+    window.addEventListener("message", (e) => this.messageListener(e));
   }
 
   private messageListener(event: MessageEvent<Sandbox.IMessageChannelData>) {
@@ -99,6 +97,7 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     if (!event.data.EventType) {
       return;
     }
+    console.log("iframe revice message is %o", event.data);
     // 开始处理 InitLoaded
     if (this.InitLoaded(event)) {
       return;
@@ -111,7 +110,7 @@ export class MessageChannel implements Sandbox.IMessageChannel {
    * @param eventType  事件类型
    * @param payload 荷载数据
    */
-  private PostMessage(eventType: Sandbox.MessageEventType = "Method", payload: Sandbox.IMessagePayload) {
+  private PostMessage(eventType: MessageEventType = "Method", payload: Sandbox.IMessagePayload) {
     this.iframe?.postMessage(
       {
         EventType: eventType,
@@ -176,14 +175,14 @@ export class MessageChannel implements Sandbox.IMessageChannel {
       const promiseCallback = {} as Sandbox.IPromiseCallback;
       promiseCallback.Resolve = res;
       promiseCallback.Error = rej;
-      this.listeners[SandboxUtils.MergeEventName(message.Namespace, message.Method)] = [new MessageChannelEvent(message.Id, promiseCallback, timeout, 1)];
+      this.listeners[SandboxUtils.MergeEventName(message.Namespace, message.Method)] = [new MessageChannelEvent(message.Id, promiseCallback, 1, timeout)];
     });
   }
 
   public On(namespace: string, method: string, callback: Sandbox.MessageCallback): Sandbox.RemoveListener {
     const eventName = SandboxUtils.MergeEventName(namespace, method);
     const list: Sandbox.IMessageEvent[] = this.listeners[eventName] ? this.listeners[eventName] : [];
-    list.push(new MessageChannelEvent(eventName, callback, -1, -1));
+    list.push(new MessageChannelEvent("", callback, -1, -1));
     this.listeners[eventName] = list;
     console.log(`add ${eventName} event listener`);
     return () => _.remove(this.listeners[eventName], (o: Sandbox.IMessageEvent) => o.Callback === callback).length > 0;

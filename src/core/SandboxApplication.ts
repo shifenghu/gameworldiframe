@@ -1,7 +1,8 @@
-/// <reference path="../common/framework.ts" />
 import _ from "lodash";
 
 import { MessageChannel } from "./MessageChannel";
+import { ApplicationContext } from "src/Application";
+import { LifecycleEventType } from "../common/SandboxUtils";
 
 const MessageIdPrefix = {
   Sync: "__sync_",
@@ -21,9 +22,11 @@ export abstract class MyPlugin implements Sandbox.IPlugin<SandboxConfigurator, S
 export class SandboxContext implements Sandbox.IContext<SandboxConfigurator, SandboxContext> {
   public readonly Sandbox: Sandbox.ISandbox;
   public readonly Plugin: Sandbox.IPlugin<SandboxConfigurator, SandboxContext>;
-  constructor(sandbox: Sandbox.ISandbox, plugin: Sandbox.IPlugin<SandboxConfigurator, SandboxContext>) {
+  public readonly ApplicationContext: ApplicationContext;
+  constructor(sandbox: Sandbox.ISandbox, plugin: Sandbox.IPlugin<SandboxConfigurator, SandboxContext>, ApplicationContext: ApplicationContext) {
     this.Sandbox = sandbox;
     this.Plugin = plugin;
+    this.ApplicationContext = ApplicationContext;
   }
   public Post(method: string, args: any[] = []) {
     this.Sandbox.Post(this.Plugin.Namespace, method, args);
@@ -37,10 +40,10 @@ export class SandboxContext implements Sandbox.IContext<SandboxConfigurator, San
   public On(method: string, callback: Sandbox.MessageCallback): Sandbox.RemoveListener {
     return this.Sandbox.On(this.Plugin.Namespace, method, callback);
   }
-  public OnLifecycle(eventType: Sandbox.LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback) {
+  public OnLifecycle(eventType: LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback) {
     this.Sandbox.OnLifecycle(eventType, callback);
   }
-  public OffLifecycle(eventType: Sandbox.LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback): boolean {
+  public OffLifecycle(eventType: LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback): boolean {
     return this.Sandbox.OffLifecycle(eventType, callback);
   }
 }
@@ -49,7 +52,8 @@ export class SandboxApplication implements Sandbox.ISandbox {
   private messageChannel!: MessageChannel;
   private readonly plugins: MyPlugin[] = [];
   private configurator: SandboxConfigurator = {};
-  private lifecycleEvents: { [key in Sandbox.LifecycleEventType]: Sandbox.SandboxLifecycleCallback[] };
+  private lifecycleEvents: { [key in LifecycleEventType]: Sandbox.SandboxLifecycleCallback[] };
+  public readonly ApplicationContext: any = {};
 
   constructor() {
     this.lifecycleEvents = {
@@ -58,13 +62,14 @@ export class SandboxApplication implements Sandbox.ISandbox {
       BeforeInitPlugin: [],
       AfterInitPlugin: [],
     };
+    this.ApplicationContext.Sandbox = this;
   }
 
   private OnLoad() {
-    this.TriggerLifecycle(Sandbox.LifecycleEventType.Inited);
+    this.TriggerLifecycle(LifecycleEventType.Inited);
   }
 
-  private TriggerLifecycle(type: Sandbox.LifecycleEventType, ...args: any[]) {
+  private TriggerLifecycle(type: LifecycleEventType, ...args: any[]) {
     _.forEach(this.lifecycleEvents[type], (o) => o(type, ...args));
   }
 
@@ -77,9 +82,9 @@ export class SandboxApplication implements Sandbox.ISandbox {
     // 先给 plugin 排序
     this.plugins.sort((o1, o2) => o1.Orderer - o2.Orderer);
     // 开始初始化
-    this.TriggerLifecycle(Sandbox.LifecycleEventType.BeforeInitPlugin);
-    _.forEach(this.plugins, (o) => o.Initialize(this.configurator, new SandboxContext(this, o)));
-    this.TriggerLifecycle(Sandbox.LifecycleEventType.AfterInitPlugin);
+    this.TriggerLifecycle(LifecycleEventType.BeforeInitPlugin);
+    _.forEach(this.plugins, (o) => o.Initialize(this.configurator, new SandboxContext(this, o, this.ApplicationContext)));
+    this.TriggerLifecycle(LifecycleEventType.AfterInitPlugin);
   }
 
   public Post(namespace: string, method: string, args: any[] = []) {
@@ -112,17 +117,17 @@ export class SandboxApplication implements Sandbox.ISandbox {
   public On(namespace: string, method: string, callback: Sandbox.MessageCallback): Sandbox.RemoveListener {
     return this.messageChannel.On(namespace, method, callback);
   }
-  public OnLifecycle(eventType: Sandbox.LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback) {
+  public OnLifecycle(eventType: LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback) {
     this.lifecycleEvents[eventType].push(callback);
   }
 
-  public OffLifecycle(eventType: Sandbox.LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback): boolean {
+  public OffLifecycle(eventType: LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback): boolean {
     return _.remove(this.lifecycleEvents[eventType], (o) => o === callback).length > 0;
   }
 
   // 销毁组件
   public Destroy() {
-    this.TriggerLifecycle(Sandbox.LifecycleEventType.Destroyed);
+    this.TriggerLifecycle(LifecycleEventType.Destroyed);
     this.messageChannel.Destroy();
   }
 }

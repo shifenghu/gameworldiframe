@@ -8,7 +8,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rm -rf dist && rm -rf lib && webpack  --mode production",
-    "postbuild": "cp dist/sandbox-iframe.js ../gameworld/public/demo/"
+    "postbuild": "cp dist/sandbox-iframe.js ../gameworld/public/demo/ && cp -r src/common ../gameworld/src/framework"
   },
   "author": "",
   "license": "ISC",
