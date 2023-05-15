@@ -48,7 +48,7 @@ class MessageChannelEvent implements Sandbox.IMessageEvent {
         (this.Callback as Sandbox.MessageCallback)(message);
       }
     } catch (e) {
-      console.error(`Message callback error is %o`, e);
+      console.error(`Iframe message callback error is %o`, e);
     }
     if (this.times < 0) {
       return false;
@@ -69,6 +69,7 @@ export class MessageChannel implements Sandbox.IMessageChannel {
   private readonly OnLoaded: () => void;
   private listeners: Sandbox.MessageChannelListeners = {};
   private interval?: NodeJS.Timer;
+  private messageListenerRef?: (e: MessageEvent<any>) => void;
 
   constructor(onLoaded: () => void) {
     this.OnLoaded = onLoaded;
@@ -89,7 +90,8 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     //   // 其他信息处理
     //   this.doListener(event.data);
     // };
-    window.addEventListener("message", (e) => this.messageListener(e));
+    this.messageListenerRef = (e) => this.messageListener(e);
+    window.addEventListener("message", this.messageListenerRef);
   }
 
   private messageListener(event: MessageEvent<Sandbox.IMessageChannelData>) {
@@ -97,7 +99,6 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     if (!event.data.EventType) {
       return;
     }
-    console.log("iframe revice message is %o", event.data);
     // 开始处理 InitLoaded
     if (this.InitLoaded(event)) {
       return;
@@ -159,14 +160,14 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     if (data.EventType !== "Method") {
       return;
     }
-    console.log("once message is %o", data);
+    console.log("Iframe once message is %o", data);
     const message = data.Payload;
     SandboxUtils.IterateListeners(this.listeners, SandboxUtils.MergeEventName(message.Namespace, message.Method), (event: Sandbox.IMessageEvent) => event.OnCallback(message));
   }
 
   public Post(message: Sandbox.IMessagePayload) {
     this.PostMessage("Method", message);
-    console.log(`Post message [${JSON.stringify(message)}] is successfull.`);
+    console.log(`Iframe Post message [${JSON.stringify(message)}] is successfull.`);
   }
 
   public Fetch(message: Sandbox.IMessagePayload, timeout: number = 5000): Promise<Sandbox.IMessagePayload> {
@@ -184,12 +185,12 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     const list: Sandbox.IMessageEvent[] = this.listeners[eventName] ? this.listeners[eventName] : [];
     list.push(new MessageChannelEvent("", callback, -1, -1));
     this.listeners[eventName] = list;
-    console.log(`add ${eventName} event listener`);
+    console.log(`iframe add ${eventName} event listener`);
     return () => _.remove(this.listeners[eventName], (o: Sandbox.IMessageEvent) => o.Callback === callback).length > 0;
   }
 
   public Destroy() {
     this.interval && clearInterval(this.interval);
-    this.messageListener && window.removeEventListener("message", this.messageListener);
+    this.messageListenerRef && window.removeEventListener("message", this.messageListenerRef);
   }
 }
