@@ -1,10 +1,10 @@
 import { SandboxUtils, MessageEventType } from "../common/SandboxUtils";
 import _ from "lodash";
-const InitPostData = {
+const InitPostData: Sandbox.IMessagePayload = {
   Namespace: "",
   Method: "",
   Id: "xxxxxxxx",
-  Args: [],
+  Args: undefined,
 };
 
 /**
@@ -15,7 +15,7 @@ class MessageChannelEvent implements Sandbox.IMessageEvent {
   public readonly Callback: Sandbox.MessageCallback | Sandbox.IPromiseCallback;
   public readonly Timeout: number;
   public readonly Times: number;
-  public readonly IsPromise: Boolean;
+  public readonly IsPromise: boolean;
   private times: number;
   constructor(matchId: string = "", callback: Sandbox.MessageCallback | Sandbox.IPromiseCallback, times: number = -1, timeout: number = -1) {
     this.MatchId = matchId;
@@ -43,7 +43,11 @@ class MessageChannelEvent implements Sandbox.IMessageEvent {
     // 执行一次
     try {
       if (this.IsPromise) {
-        (this.Callback as Sandbox.IPromiseCallback).Resolve(message);
+        if (message.Error == undefined) {
+          (this.Callback as Sandbox.IPromiseCallback).Resolve(message);
+        } else {
+          (this.Callback as Sandbox.IPromiseCallback).Error(message.Error);
+        }
       } else {
         (this.Callback as Sandbox.MessageCallback)(message);
       }
@@ -68,6 +72,7 @@ export class MessageChannel implements Sandbox.IMessageChannel {
   private initCounter = 0;
   private readonly OnLoaded: () => void;
   private listeners: Sandbox.MessageChannelListeners = {};
+  private allListeners: Sandbox.IMessageEvent[] = [];
   private interval?: NodeJS.Timer;
   private messageListenerRef?: (e: MessageEvent<any>) => void;
 
@@ -131,9 +136,10 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     }
     this.iframe = event.source as Window;
     this.initCounter++;
-    if (this.initCounter == 1) {
-      this.PostMessage("Inited", InitPostData);
+    if (this.initCounter <= 2) {
+      this.PostMessage("Inited", { ...InitPostData, Args: [this.initCounter] });
     } else {
+      this.initCounter = 0;
       this.OnLoaded();
       this.isInited = true;
     }
@@ -178,6 +184,16 @@ export class MessageChannel implements Sandbox.IMessageChannel {
       promiseCallback.Error = rej;
       this.listeners[SandboxUtils.MergeEventName(message.Namespace, message.Method)] = [new MessageChannelEvent(message.Id, promiseCallback, 1, timeout)];
     });
+  }
+
+  /**
+   * 添加一个监听所有事件的监听
+   * @param callback
+   * @returns
+   */
+  public OnAll(callback: Sandbox.MessageCallback): Sandbox.RemoveListener {
+    this.allListeners.push(new MessageChannelEvent("", callback, -1, -1));
+    return () => _.remove(this.allListeners, (o) => o.Callback == callback).length > 0;
   }
 
   public On(namespace: string, method: string, callback: Sandbox.MessageCallback): Sandbox.RemoveListener {

@@ -8,6 +8,7 @@ declare namespace Sandbox {
     readonly Method: string;
     readonly Args: any;
     readonly Encryption?: string;
+    readonly Error?: string;
   }
 
   declare interface SandboxUtils {
@@ -52,7 +53,7 @@ declare namespace Sandbox {
     readonly Callback: IPromiseCallback | MessageCallback;
     readonly Timeout: number;
     readonly Times: number;
-    readonly IsPromise: Boolean;
+    readonly IsPromise: boolean;
     OnCallback: (message: IMessagePayload) => boolean;
     IsTimeout: () => boolean;
   }
@@ -78,9 +79,11 @@ declare namespace Sandbox {
   declare interface IConfigurator {}
 
   declare interface ISandbox extends ISandboxLifecycle {
-    Post: (namespace: string, method: string, args: any[]) => void;
+    Post: (namespace: string, method: string, args: any[]) => string;
+    PostError: (namespace: string, method: string, error: string) => string;
     Fetch: (namespace: string, method: string, args: any[], timeout: number) => Promise<IMessagePayload>;
     Reply: (message: IMessagePayload, args: any[]) => void;
+    ReplayError: (message: IMessagePayload, error: string) => void;
     On: (namespace: string, method: string, callback: MessageCallback) => RemoveListener;
   }
 
@@ -90,9 +93,11 @@ declare namespace Sandbox {
   declare interface IContext<T extends IConfigurator, M extends IContext<T, M>> extends ISandboxLifecycle {
     readonly Sandbox: ISandbox;
     readonly Plugin: IPlugin<T, M>;
-    Post: (method: string, args: any[]) => void;
+    Post: (method: string, args: any[]) => string;
+    PostError: (method: string, error: string) => string;
     Fetch: (method: string, args: any[], timeout: number) => Promise<IMessagePayload>;
     Reply: (message: IMessagePayload, args: any[]) => void;
+    ReplayError: (message: IMessagePayload, error: string) => void;
     On: (method: string, callback: MessageCallback) => RemoveListener;
   }
 
@@ -109,6 +114,18 @@ declare namespace Sandbox {
     // 销毁组件
     Destroy: () => void;
   }
+  declare interface ApplicationInfo {
+    Name: string;
+    Platform: Sandbox.AppPlatformType;
+    Uri: string;
+    Size: {
+      Width: number;
+      Height: number;
+    };
+  }
+
+  //应用平台类型
+  declare type AppPlatformType = "Unity" | "H5";
 }
 
 declare interface Window {

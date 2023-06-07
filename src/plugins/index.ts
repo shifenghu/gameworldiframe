@@ -1,2 +1,3 @@
 import ApplicationPlugin from "./ApplicationPlugin";
-export default [ApplicationPlugin];
+import UnityAdaptation from "./UnityAdaptation";
+export default [UnityAdaptation, ApplicationPlugin];
