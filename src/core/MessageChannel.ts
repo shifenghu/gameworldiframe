@@ -168,6 +168,7 @@ export class MessageChannel implements Sandbox.IMessageChannel {
     }
     console.log("Iframe once message is %o", data);
     const message = data.Payload;
+    this.allListeners.forEach((o) => o.OnCallback(message));
     SandboxUtils.IterateListeners(this.listeners, SandboxUtils.MergeEventName(message.Namespace, message.Method), (event: Sandbox.IMessageEvent) => event.OnCallback(message));
   }
 

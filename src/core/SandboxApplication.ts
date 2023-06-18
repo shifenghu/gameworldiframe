@@ -137,6 +137,7 @@ export class SandboxApplication implements Sandbox.ISandbox {
       timeout
     );
   }
+
   public Reply(message: Sandbox.IMessagePayload, args: any[] = []) {
     this.messageChannel.Post({
       Id: message.Id,
@@ -164,6 +165,14 @@ export class SandboxApplication implements Sandbox.ISandbox {
 
   public OffLifecycle(eventType: LifecycleEventType, callback: Sandbox.SandboxLifecycleCallback): boolean {
     return _.remove(this.lifecycleEvents[eventType], (o) => o === callback).length > 0;
+  }
+
+  public GameInit() {
+    console.log("Game is inited");
+  }
+
+  public GameExit() {
+    console.log("Game is exited");
   }
 
   // 销毁组件

@@ -21,6 +21,7 @@ export default class UnityAdaptation extends MyPlugin {
     this.UnityInstance = instance;
     this.GameName = bootstrapName;
     this.IsReady = true;
+    console.error("set name is %s,%o", this.GameName, this.UnityInstance);
   }
 
   private OnListener(message: Sandbox.IMessagePayload): void {
@@ -29,12 +30,13 @@ export default class UnityAdaptation extends MyPlugin {
       return;
     }
     const data = {} as any;
-    data.id = message.Id;
+    data.Id = message.Id;
     data.Namespace = message.Namespace;
     data.Method = message.Method;
     data.Error = message.Error;
-    data.Args = _.isUndefined(message.Args) ? undefined : JSON.stringify(message.Args);
+    data.ArgsJson = _.isUndefined(message.Args) ? undefined : JSON.stringify(message.Args);
     data.Encryption = message.Encryption;
-    this.UnityInstance.SendMessage(this.GameName, "TriggerAllways", JSON.stringify(data));
+    this.UnityInstance.SendMessage(this.GameName, "OnTrigger", JSON.stringify(data));
+    console.error("get message is %o", JSON.stringify(data));
   }
 }
