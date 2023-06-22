@@ -1,4 +1,4 @@
-import { SandboxUtils, MessageEventType } from "../common/SandboxUtils";
+import { SandboxUtils, MessageEventType, InitMessageNamespace } from "../common/SandboxUtils";
 import _ from "lodash";
 const InitPostData: Sandbox.IMessagePayload = {
   Namespace: "",
@@ -68,33 +68,32 @@ class MessageChannelEvent implements Sandbox.IMessageEvent {
 
 export class MessageChannel implements Sandbox.IMessageChannel {
   private iframe?: Window | undefined;
-  private isInited = false;
-  private initCounter = 0;
-  private readonly OnLoaded: () => void;
+  private initState: InitMessageNamespace = "Connect";
   private listeners: Sandbox.MessageChannelListeners = {};
   private allListeners: Sandbox.IMessageEvent[] = [];
   private interval?: NodeJS.Timer;
   private messageListenerRef?: (e: MessageEvent<any>) => void;
+  private onInitListeners!: () => void;
+  private onInitDatas!: () => Promise<void>;
+  private onCompleted!: () => void;
 
-  constructor(onLoaded: () => void) {
-    this.OnLoaded = onLoaded;
+  constructor() {
     this.Init();
+  }
+
+  /**
+   * 初始化数据
+   * @param onReady 上层准备函数
+   * @returns
+   */
+  public async Initialize(onInitListeners: () => void, onInitDatas: () => Promise<void>): Promise<void> {
+    this.onInitListeners = onInitListeners;
+    this.onInitDatas = onInitDatas;
+    return new Promise((res) => (this.onCompleted = res));
   }
 
   private Init() {
     this.interval = setInterval(() => this.clearTimeoutEvent(), 2000);
-    // this.messageListener = (event) => {
-    //   // 是否是我们需要的消息
-    //   if (!event.data.EventType) {
-    //     return;
-    //   }
-    //   // 开始处理 InitLoaded
-    //   if (this.InitLoaded(event)) {
-    //     return;
-    //   }
-    //   // 其他信息处理
-    //   this.doListener(event.data);
-    // };
     this.messageListenerRef = (e) => this.messageListener(e);
     window.addEventListener("message", this.messageListenerRef);
   }
@@ -131,18 +130,35 @@ export class MessageChannel implements Sandbox.IMessageChannel {
    * @param event
    */
   private InitLoaded(event: MessageEvent<Sandbox.IMessageChannelData>) {
-    if (this.isInited || event.data.EventType != "Inited") {
+    if (this.initState === "Inited" || event.data.EventType != "Inited") {
       return false;
     }
     this.iframe = event.source as Window;
-    this.initCounter++;
-    if (this.initCounter <= 2) {
-      this.PostMessage("Inited", { ...InitPostData, Args: [this.initCounter] });
-    } else {
-      this.initCounter = 0;
-      this.OnLoaded();
-      this.isInited = true;
+    const nm = event.data.Payload.Namespace as InitMessageNamespace;
+    switch (nm) {
+      case "Connect":
+        this.initState === "Connect" && this.PostInitMessage({ ...InitPostData, Namespace: "Connected" });
+        break;
+      case "Connected":
+        if (this.initState == "Connect") {
+          this.onInitListeners();
+          this.PostInitMessage({ ...InitPostData, Namespace: "InitListeners" });
+        }
+        break;
+      case "InitListeners":
+        if (this.initState == "Connected") {
+          this.onInitDatas().then(() => this.PostInitMessage({ ...InitPostData, Namespace: "InitDatas" }));
+        }
+        break;
+      case "InitDatas":
+        if (this.initState == "InitListeners") {
+          this.PostInitMessage({ ...InitPostData, Namespace: "Inited" });
+        }
+        break;
+      default:
+        this.onCompleted();
     }
+    this.initState = nm;
     return true;
   }
 
@@ -175,6 +191,10 @@ export class MessageChannel implements Sandbox.IMessageChannel {
   public Post(message: Sandbox.IMessagePayload) {
     this.PostMessage("Method", message);
     console.log(`Iframe Post message [${JSON.stringify(message)}] is successfull.`);
+  }
+
+  public PostInitMessage(message: Sandbox.IMessagePayload) {
+    this.PostMessage("Inited", message);
   }
 
   public Fetch(message: Sandbox.IMessagePayload, timeout: number = 5000): Promise<Sandbox.IMessagePayload> {

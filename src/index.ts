@@ -4,7 +4,7 @@ import AllPlugins from "./plugins";
 const Initialize = (): SandboxApplication => {
   const application = new SandboxApplication();
   _.forEach(AllPlugins, (o) => application.AddPlugin(new o()));
-  application.Initialize();
+  application.Initialize().then(() => console.error("Iframe application is Initialized."));
   (window as any).sandbox = application;
   return application;
 };

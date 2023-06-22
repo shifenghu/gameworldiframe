@@ -3,15 +3,20 @@ import _ from "lodash";
 export const SandboxUtils = {} as Sandbox.SandboxUtils;
 
 export type MessageEventType = "Inited" | "Method";
+// 初始化时消息命名空间，Connect：framwork 链接, Connected: 链接成功， InitListeners : 组件监听完成, InitDatas:数据初始化完成，一般伴随着异步操作和消息交互, Inited: 初始化成功, Progress:处理进度
+export type InitMessageNamespace = "Connect" | "Connected" | "InitListeners" | "InitDatas" | "Inited" | "Progress";
 
 /**
  * 生命周期阶段类型
  */
 export enum LifecycleEventType {
   Inited = "Inited",
+  Init = "Init",
   Destroyed = "Destroyed",
-  BeforeInitPlugin = "BeforeInitPlugin",
-  AfterInitPlugin = "AfterInitPlugin",
+  BeforeInitListenersPlugin = "BeforeInitListenersPlugin",
+  AfterInitListenersPlugin = "AfterInitListenersPlugin",
+  BeforeInitDatasPlugin = "BeforeInitDatasPlugin",
+  AfterInitDatasPlugin = "AfterInitDatasPlugin",
 }
 
 /**

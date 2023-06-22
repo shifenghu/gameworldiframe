@@ -10,7 +10,6 @@ declare namespace Sandbox {
     readonly Encryption?: string;
     readonly Error?: string;
   }
-
   declare interface SandboxUtils {
     IterateListeners: (listeners: MessageChannelListeners, eventName: string, ifRemove: (event: IMessageEvent) => boolean) => void;
     MergeEventName: (namespace: string, method: string) => string;
@@ -109,8 +108,10 @@ declare namespace Sandbox {
     readonly Namespace: string;
     // 组件排序
     readonly Orderer: number;
-    // 初始化组件
-    Initialize: (configurator: T, context: M) => void;
+    // 只初始化监听
+    InitializeListeners: (configurator: T, context: M) => void;
+    // 有数据交互的初始化
+    InitializeData: (configurator: T, context: M) => Promise<void>;
     // 销毁组件
     Destroy: () => void;
   }
